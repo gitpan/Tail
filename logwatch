@@ -1,0 +1,9 @@
+#!/usr/bin/perl -w
+use File::Tail;
+$name="/var/log/syslog" unless $name=shift @ARGV;
+$debug=shift @ARGV || 0;
+
+$file=File::Tail->new(name=>$name,debug=>$debug,interval=>1);
+while ($line=$file->read) {
+    print "$line";
+}
