@@ -9,7 +9,7 @@ require Exporter;
 # Items to export into callers namespace by default. Note: do not export
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
-$VERSION = '0.5';
+$VERSION = '0.6';
 
 
 # Preloaded methods go here.
@@ -17,6 +17,7 @@ $VERSION = '0.5';
 use FileHandle;
 use IO::Seekable;
 use File::stat;
+use Carp;
 use Time::HiRes qw ( time sleep ); #import hires microsecond timers
 
 sub interval {
@@ -68,13 +69,13 @@ sub resetafter {
 
 sub new {
     my ($pkg)=shift @_;
-    $pkg=ref($pkg) || $pkg || "LogWatch";
+    $pkg=ref($pkg) || $pkg || "File::Tail";
     my %params;
     if ($#_ == 0)  {
-	$params{"infile"}=$_[0];
+	$params{"name"}=$_[0];
     } else {
 	if (($#_ % 2) != 1) {
-	    $!="Odd number of parameters for new";
+	    croak "Odd number of parameters for new";
 	    return undef;
 	}
 	%params=@_;
@@ -83,7 +84,8 @@ sub new {
     my $object = {};
     bless $object,$pkg;
     unless (defined($params{'name'})) {
-	$!="No file name given. Pass filename as \"name\" parameter";
+	croak "No file name given. Pass filename as \"name\" parameter";
+	return;
     }
     $object->input($params{'name'});
     $object->copy($params{'cname'});
@@ -113,9 +115,10 @@ sub reset_pointers {
     my $oldhandle=$object->{handle};
     my $newhandle=FileHandle->new;
 
-    return $!="Error opening ".$object->input.": $!",undef 
-	unless open($newhandle,"<".$object->input);
-
+    unless (open($newhandle,"<".$object->input)) {
+	croak "Error opening ".$object->input.": $!";
+	return undef;
+    }
     
     if (defined($oldhandle)) {
 	# If file has not been changed since last OK read don't do anything
@@ -139,10 +142,10 @@ sub reset_pointers {
 
     $object->{lastread}=time;
     
-    if (defined($object->{cname})) {
-	return $!="Error opening ".$object->{cname}.": $!",undef 
-	    unless open($object->{cname},">>".$object->{cname});
-    }
+#    if (defined($object->{cname})) {
+#	return $!="Error opening ".$object->{cname}.": $!",undef 
+#	    unless open($object->{cname},">>".$object->{cname});
+#    }
 }
 
 
@@ -253,8 +256,8 @@ should do the right thing even if the time to sleep is less than one second.
 =head2 new ([ ARGS ]) 
 
 Creates a C<File::Tail>. If it has only one paramter, it is assumed to 
-be the filename. If the open fails, or there is some other kind of error,
-it returns undef, and the error in $!;
+be the filename. If the open fails, the module performs a croak. I
+am currently looking for a way to set $! and return undef. 
 
 You can pass several parameters to new:
 
